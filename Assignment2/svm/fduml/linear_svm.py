@@ -33,9 +33,11 @@ def svm_loss_naive(W, X, y, reg):
             margin = scores[j] - correct_class_score + 1  # note delta = 1
             if margin > 0:
                 loss += margin
+                # 同时计算梯度
+                dW[:, j] += X[i]
+                dW[:, y[i]] -= X[i]
 
     loss /= num_train
-
     loss += reg * np.sum(W * W)
 
     #############################################################################
@@ -46,7 +48,9 @@ def svm_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # 平均化梯度并添加正则化项梯度
+    dW /= num_train
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -64,11 +68,30 @@ def svm_loss_vectorized(W, X, y, reg):
 
     #############################################################################
     # TODO:                                                                     #
-    # 实现结构化SVM损失的向量化版本，将结果存储在loss中。                           #
+    # 实现结构化SVM损失的向量化版本，将结果存储在loss中。                              #
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    num_train = X.shape[0]
+    
+    # 计算所有得分: (N, C)
+    scores = X.dot(W)
+    
+    # 获取正确类别的得分: (N,)
+    correct_class_scores = scores[np.arange(num_train), y]
+    
+    # 计算margins: (N, C)
+    margins = scores - correct_class_scores[:, np.newaxis] + 1
+    
+    # 将正确类别的margin设为0
+    margins[np.arange(num_train), y] = 0
+    
+    # 只保留大于0的margins
+    margins = np.maximum(0, margins)
+    
+    # 计算损失
+    loss = np.sum(margins) / num_train
+    loss += reg * np.sum(W * W)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -79,7 +102,20 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # 创建一个二进制掩码，标记哪些margin > 0
+    binary = margins
+    binary[margins > 0] = 1
+    
+    # 对于每个样本，计算有多少个错误类别的margin > 0
+    row_sum = np.sum(binary, axis=1)
+    binary[np.arange(num_train), y] = -row_sum
+    
+    # 计算梯度
+    dW = X.T.dot(binary)
+    
+    # 平均化并添加正则化项
+    dW /= num_train
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
